@@ -22,9 +22,9 @@ st.markdown("""
 st.title("🖨️ Sistema de Gestión - Imprenta")
 
 # ==============================================================================
-# 👇 CONFIGURACIÓN DE RUTA COMPARTIDA (YA CONFIGURADA CON TU DRIVE) 👇
+# CONFIGURACIÓN DE RUTA PARA LA NUBE Y PC
 # ==============================================================================
-RUTA_COMPARTIDA = r"G:\Mi unidad\sistema_imprenta_datos" 
+RUTA_COMPARTIDA = "" 
 
 def obtener_ruta(nombre_archivo):
     if RUTA_COMPARTIDA:
