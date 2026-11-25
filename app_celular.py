@@ -54,10 +54,25 @@ def _url_descarga_drive(file_id: str, fmt: str | None = None) -> str:
     return f"https://drive.google.com/uc?export=download&id={file_id}"
 
 
+def _parsear_fecha_cheque(f_str: str):
+    """Convierte una fecha de cheque (dd/mm/aaaa, dd/mm/aa, dd/mm o yyyy-mm-dd) a Timestamp."""
+    f_limpia = (f_str or "").strip()
+    if not f_limpia or f_limpia.lower() in ("sin fecha", "nan", "none"):
+        return pd.NaT
+    partes = f_limpia.split("/")
+    if len(partes) == 2:
+        f_limpia = f"{partes[0].zfill(2)}/{partes[1].zfill(2)}/{datetime.now().year}"
+    for fmt in ("%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d"):
+        dt = pd.to_datetime(f_limpia, format=fmt, errors="coerce")
+        if pd.notna(dt):
+            return dt
+    return pd.to_datetime(f_limpia, dayfirst=True, errors="coerce")
+
+
 def _parsear_cheques_df(df_raw: pd.DataFrame) -> pd.DataFrame:
-    """Extrae Proveedor, Vencimiento y Monto desde CHEQUES NUEVO.xlsx."""
+    """Extrae Proveedor, Vencimiento y Monto desde CHEQUES NUEVO.xlsx (sin Estado)."""
     if df_raw is None or df_raw.empty:
-        return pd.DataFrame(columns=["Proveedor", "Vencimiento", "Monto", "Estado"])
+        return pd.DataFrame(columns=["Proveedor", "Vencimiento", "Monto"])
 
     registros = []
     proveedores_cols = {
@@ -103,11 +118,10 @@ def _parsear_cheques_df(df_raw: pd.DataFrame) -> pd.DataFrame:
                         "Proveedor": prov.upper(),
                         "Vencimiento": raw_fecha if raw_fecha else "Sin fecha",
                         "Monto": monto_num,
-                        "Estado": "Pendiente",
                     })
 
     if not registros:
-        return pd.DataFrame(columns=["Proveedor", "Vencimiento", "Monto", "Estado"])
+        return pd.DataFrame(columns=["Proveedor", "Vencimiento", "Monto"])
     return pd.DataFrame(registros)
 
 
@@ -119,7 +133,7 @@ def cargar_datos_drive(id_pedidos: str, id_cheques: str):
             "Medida", "Monto Total", "Estado", "Cobró", "Impresión", "Observaciones"
         ]
     )
-    df_cheques = pd.DataFrame(columns=["Proveedor", "Vencimiento", "Monto", "Estado"])
+    df_cheques = pd.DataFrame(columns=["Proveedor", "Vencimiento", "Monto"])
     df_gastos_sem = pd.DataFrame(columns=["Semana", "Socio", "Concepto", "Monto"])
     errores = []
 
@@ -202,7 +216,7 @@ with st.expander("☁️ Fuente Google Drive (solo consulta)", expanded=False):
 
 if st.session_state.get("usar_csv_local_prueba") and os.path.exists("PEDIDOS_CLIENTES.csv"):
     df_pedidos = pd.read_csv("PEDIDOS_CLIENTES.csv")
-    df_cheques = pd.DataFrame(columns=["Proveedor", "Vencimiento", "Monto", "Estado"])
+    df_cheques = pd.DataFrame(columns=["Proveedor", "Vencimiento", "Monto"])
     df_gastos_sem = pd.DataFrame(columns=["Semana", "Socio", "Concepto", "Monto"])
     errores_drive = []
 else:
@@ -275,7 +289,7 @@ with tab_ped:
 
 
 # ------------------------------------------------------------------------------
-# PESTAÑA 2: CHEQUES
+# PESTAÑA 2: CHEQUES (SIN ESTADO, ORDENADO DE MÁS RECIENTE A MÁS ANTIGUA)
 # ------------------------------------------------------------------------------
 with tab_chq:
     st.markdown("### 💳 Cartera de Cheques")
@@ -284,31 +298,33 @@ with tab_chq:
         st.info("Sin cheques cargados aún. Pegá el enlace o ID de `CHEQUES NUEVO.xlsx` en '☁️ Fuente Google Drive'.")
     else:
         df_c = df_cheques.copy()
+        df_c = df_c.drop(columns=["Estado"], errors="ignore")
         df_c["Monto_Num"] = pd.to_numeric(df_c["Monto"], errors="coerce").fillna(0.0)
-
-        filtro_est_chq = st.radio(
-            "Estado:",
-            ["Todos", "Pendiente", "Pagado"],
-            horizontal=True,
-            key="cel_filtro_chq",
+        df_c["Vencimiento"] = df_c["Vencimiento"].fillna("").astype(str).str.strip()
+        df_c["_fecha_sort"] = df_c["Vencimiento"].apply(_parsear_fecha_cheque)
+        df_c = (
+            df_c.sort_values(
+                by=["_fecha_sort", "Proveedor"],
+                ascending=[False, True],
+                na_position="last",
+            )
+            .reset_index(drop=True)
         )
-        if filtro_est_chq != "Todos" and "Estado" in df_c.columns:
-            df_c = df_c[df_c["Estado"] == filtro_est_chq]
 
-        pend_total = (
-            float(pd.to_numeric(df_cheques[df_cheques["Estado"] == "Pendiente"]["Monto"], errors="coerce").fillna(0).sum())
-            if "Estado" in df_cheques.columns
-            else 0.0
-        )
+        total_chq = float(df_c["Monto_Num"].sum())
         st.markdown(
-            f'<div class="kpi-card"><div class="kpi-label">Cheques Pendientes</div>'
-            f'<div class="kpi-value">${pend_total:,.0f}</div></div>',
+            f'<div class="kpi-card"><div class="kpi-label">Total Cheques</div>'
+            f'<div class="kpi-value">${total_chq:,.0f}</div></div>',
             unsafe_allow_html=True,
         )
 
         st.dataframe(
-            df_c[["Proveedor", "Vencimiento", "Monto_Num", "Estado"]].rename(columns={"Monto_Num": "Monto ($)"}),
-            column_config={"Monto ($)": st.column_config.NumberColumn(format="$%.0f")},
+            df_c[["Vencimiento", "Proveedor", "Monto_Num"]].rename(columns={"Monto_Num": "Monto ($)"}),
+            column_config={
+                "Vencimiento": st.column_config.TextColumn("Vencimiento", width="small"),
+                "Proveedor": st.column_config.TextColumn("Proveedor"),
+                "Monto ($)": st.column_config.NumberColumn(format="$%.0f"),
+            },
             use_container_width=True,
             hide_index=True,
         )
@@ -376,3 +392,4 @@ with tab_sem:
                 st.warning(f"GON debe transferir **${abs(ajuste):,.0f}** a ROB.")
             else:
                 st.success("Cuentas empatadas.")
+```[cite: 8]
