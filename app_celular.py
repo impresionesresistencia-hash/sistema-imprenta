@@ -392,4 +392,3 @@ with tab_sem:
                 st.warning(f"GON debe transferir **${abs(ajuste):,.0f}** a ROB.")
             else:
                 st.success("Cuentas empatadas.")
-```[cite: 8]
