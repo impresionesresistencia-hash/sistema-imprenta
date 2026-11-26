@@ -7,6 +7,7 @@ import streamlit as st
 URL_PEDIDOS_DEFAULT = "https://drive.google.com/file/d/1N2ilCbRRKguBYFwOnISyuDdYuLEVzFfT/view?usp=drive_link"
 URL_GASTOS_DEFAULT = "https://drive.google.com/file/d/13kC1dwUT9y4JjTtwt5f-RiunMjdiKiR3/view?usp=drive_link"  
 
+
 st.set_page_config(
     page_title="Informe Imprenta",
     page_icon="🧾",
@@ -134,14 +135,19 @@ else:
     df_hist_corto = df_i.sort_values("Fecha_Ped_dt", ascending=False).head(30).copy()
 
     lineas_trabajos = []
+    fecha_anterior = None
     for _, r in df_hist_corto.iterrows():
         f_str = str(r.get("Fecha", "")).strip()
+        if fecha_anterior is not None and f_str != fecha_anterior:
+            lineas_trabajos.append("")
+        fecha_anterior = f_str
+
         cli_str = str(r.get("Cliente", "")).strip()
         mat_str = str(r.get("Material", "")).strip()
         mto_str = f"${float(r.get('Monto_Num', 0.0)):,.0f}"
         imp_raw = str(r.get("Impresión", "")).strip()
-        impreso_str = "🟢 Impreso" if "FINALIZADO" in imp_raw.upper() else "🔴 No impreso"
-        lineas_trabajos.append(f"• {f_str} | {cli_str} | {mat_str} | {mto_str} | {impreso_str}")
+        punto_imp = "🟢" if "FINALIZADO" in imp_raw.upper() else "🔴"
+        lineas_trabajos.append(f"• {f_str} | {cli_str} | {mat_str} | {mto_str} | {punto_imp}")
 
     texto_informe = (
         f"🧾 INFORME IMPRENTA — {datetime.now().strftime('%H:%M hs (%d/%m)')}\n"
@@ -154,7 +160,7 @@ else:
         f"  👉 Neto Limpio GON: ${neto_gon_i:,.0f}\n"
         f"{cierre_linea}\n"
         f"────────────────────────────────────\n"
-        f"📋 HISTORIAL (FECHA / CLIENTE / MATERIAL / MONTO / IMPRESIÓN)\n"
+        f"📋 HISTORIAL\n"
         + ("\n".join(lineas_trabajos) if lineas_trabajos else "• Sin trabajos recientes")
     )
 
