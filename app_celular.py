@@ -87,6 +87,9 @@ if df_pedidos.empty:
     st.warning("Falta configurar `URL_PEDIDOS_DEFAULT` en `app_celular.py` (o verificar que el archivo en Drive tenga acceso de lectura para cualquiera con el enlace).")
 else:
     df_i = df_pedidos.copy()
+    df_i["Fecha"] = df_i["Fecha"].fillna("").astype(str).str.strip()
+    df_i["Cliente"] = df_i["Cliente"].fillna("").astype(str).str.strip()
+    df_i["Material"] = df_i["Material"].fillna("").astype(str).str.strip()
     df_i["Monto_Num"] = pd.to_numeric(df_i.get("Monto Total", 0), errors="coerce").fillna(0.0)
 
     fecha_col_i = "Fecha Cobro" if "Fecha Cobro" in df_i.columns else "Fecha"
@@ -132,7 +135,28 @@ else:
     else:
         cierre_linea = "⚖️ Cuentas empatadas."
 
-    df_hist_corto = df_i.sort_values("Fecha_Ped_dt", ascending=False).head(30).copy()
+    def _unir_materiales(serie):
+        vistos = []
+        for v in serie:
+            s = str(v).strip()
+            if s and s not in vistos:
+                vistos.append(s)
+        return " / ".join(vistos)
+
+    def _estado_grupo_impresion(serie):
+        estados = [str(v).strip().upper() for v in serie]
+        if estados and all("FINALIZADO" in e for e in estados):
+            return "🟢"
+        return "🔴"
+
+    df_agrupado = df_i.groupby(["Fecha", "Cliente"], as_index=False).agg(
+        Material=("Material", _unir_materiales),
+        Monto_Total=("Monto_Num", "sum"),
+        Punto_Imp=("Impresión", _estado_grupo_impresion) if "Impresión" in df_i.columns else ("Monto_Num", lambda _: "🔴"),
+        Fecha_dt=("Fecha_Ped_dt", "max"),
+    )
+
+    df_hist_corto = df_agrupado.sort_values(by=["Fecha_dt", "Cliente"], ascending=[False, True]).head(30).copy()
 
     lineas_trabajos = []
     fecha_anterior = None
@@ -144,9 +168,8 @@ else:
 
         cli_str = str(r.get("Cliente", "")).strip()
         mat_str = str(r.get("Material", "")).strip()
-        mto_str = f"${float(r.get('Monto_Num', 0.0)):,.0f}"
-        imp_raw = str(r.get("Impresión", "")).strip()
-        punto_imp = "🟢" if "FINALIZADO" in imp_raw.upper() else "🔴"
+        mto_str = f"${float(r.get('Monto_Total', 0.0)):,.0f}"
+        punto_imp = str(r.get("Punto_Imp", "🔴")).strip()
         lineas_trabajos.append(f"• {f_str} | {cli_str} | {mat_str} | {mto_str} | {punto_imp}")
 
     texto_informe = (
