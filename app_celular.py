@@ -4,8 +4,8 @@ import pandas as pd
 import streamlit as st
 
 # PONÉ ACÁ TUS ENLACES O IDs FIJOS DE GOOGLE DRIVE
-URL_PEDIDOS_DEFAULT = "PEGA_AQUI_TU_ENLACE_O_ID_DE_PEDIDOS_CLIENTES_CSV"
-URL_GASTOS_DEFAULT = ""  # Opcional: enlace/ID de GASTOS_SEMANALES_CAJA.csv si lo usás
+URL_PEDIDOS_DEFAULT = "https://drive.google.com/file/d/1N2ilCbRRKguBYFwOnISyuDdYuLEVzFfT/view?usp=drive_link"
+URL_GASTOS_DEFAULT = "https://drive.google.com/file/d/13kC1dwUT9y4JjTtwt5f-RiunMjdiKiR3/view?usp=drive_link"  
 
 st.set_page_config(
     page_title="Informe Imprenta",
