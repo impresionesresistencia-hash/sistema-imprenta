@@ -143,6 +143,12 @@ else:
                 vistos.append(s)
         return " / ".join(vistos)
 
+    def _estado_grupo_cobro(serie):
+        estados = [str(v).strip() for v in serie]
+        if estados and all(e == "Entregado Cobrado" for e in estados):
+            return "🟢"
+        return "🔴"
+
     def _estado_grupo_impresion(serie):
         estados = [str(v).strip().upper() for v in serie]
         if estados and all("FINALIZADO" in e for e in estados):
@@ -152,6 +158,7 @@ else:
     df_agrupado = df_i.groupby(["Fecha", "Cliente"], as_index=False).agg(
         Material=("Material", _unir_materiales),
         Monto_Total=("Monto_Num", "sum"),
+        Punto_Cob=("Estado", _estado_grupo_cobro) if "Estado" in df_i.columns else ("Monto_Num", lambda _: "🔴"),
         Punto_Imp=("Impresión", _estado_grupo_impresion) if "Impresión" in df_i.columns else ("Monto_Num", lambda _: "🔴"),
         Fecha_dt=("Fecha_Ped_dt", "max"),
     )
@@ -166,11 +173,12 @@ else:
             lineas_trabajos.append("")
         fecha_anterior = f_str
 
+        punto_cob = str(r.get("Punto_Cob", "🔴")).strip()
         cli_str = str(r.get("Cliente", "")).strip()
         mat_str = str(r.get("Material", "")).strip()
         mto_str = f"${float(r.get('Monto_Total', 0.0)):,.0f}"
         punto_imp = str(r.get("Punto_Imp", "🔴")).strip()
-        lineas_trabajos.append(f"• {f_str} | {cli_str} | {mat_str} | {mto_str} | {punto_imp}")
+        lineas_trabajos.append(f"• {punto_cob} {f_str} | {cli_str} | {mat_str} | {mto_str} | {punto_imp}")
 
     texto_informe = (
         f"🧾 INFORME IMPRENTA — {datetime.now().strftime('%H:%M hs (%d/%m)')}\n"
