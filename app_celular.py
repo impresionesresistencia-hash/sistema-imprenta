@@ -16,7 +16,19 @@ st.set_page_config(
 
 st.markdown(
     """
-    <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/impresionesresistencia-hash/sistema-imprenta/main/icono_informe.png.png">
+    <script>
+        (function() {
+            const targetDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+            let link = targetDoc.querySelector("link[rel='apple-touch-icon']");
+            if (!link) {
+                link = targetDoc.createElement("link");
+                link.rel = "apple-touch-icon";
+                targetDoc.head.appendChild(link);
+            }
+            link.sizes = "180x180";
+            link.href = "https://raw.githubusercontent.com/impresionesresistencia-hash/sistema-imprenta/main/icono_informe.png.png";
+        })();
+    </script>
     <style>
         .stApp { background-color: #0b0f19; color: #e2e8f0; }
         [data-testid="stHeader"], [data-testid="stToolbar"], .stDeployButton, #MainMenu {
