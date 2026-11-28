@@ -16,6 +16,7 @@ st.set_page_config(
 
 st.markdown(
     """
+    <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/impresionesresistencia-hash/sistema-imprenta/main/icono_informe.png.png">
     <style>
         .stApp { background-color: #0b0f19; color: #e2e8f0; }
         [data-testid="stHeader"], [data-testid="stToolbar"], .stDeployButton, #MainMenu {
